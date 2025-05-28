@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Blockchain Voting System</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #74ebd5, #acb6e5);
+      color: #333;
+      padding: 40px;
+      margin: 0;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    h3 {
+      margin-top: 30px;
+      color: #222;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      width: 300px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 15px;
+      background-color: #4A90E2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #357ABD;
+    }
+
+    #walletAddress {
+      font-size: 16px;
+      font-weight: bold;
+      color: #444;
+      margin-top: 10px;
+    }
+
+    #output {
+      margin-top: 30px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #222;
+    }
+
+    .section {
+      background-color: white;
+      padding: 30px;
+      margin: 30px auto;
+      width: 500px;
+      border-radius: 12px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    }
+    
+    .vote-option {
+      margin: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .vote-option input {
+      margin-right: 10px;
+    }
+    
+    .results {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 20px;
+    }
+    
+    .party-result {
+      padding: 15px;
+      border-radius: 8px;
+      width: 45%;
+    }
+    
+    #ptiResult {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    
+    #pmlnResult {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+
+  <h2> Blockchain Voting System</h2>
+
+  <button onclick="connectWallet()"> Connect Wallet</button>
+  <p id="walletAddress"></p>
+
+  <div class="section">
+    <h3>Check Voter Status</h3>
+    <input type="text" id="voterAddress" placeholder="Enter Voter Address"><br>
+    <button onclick="checkVoterStatus()">Check If Registered</button>
+    <button onclick="checkIfVoted()">Check If Voted</button>
+  </div>
+
+  <div class="section">
+    <h3>Register / Remove Voter</h3>
+    <button onclick="registerVoter()">✅ Register Voter</button>
+    <button onclick="removeVoter()">❌ Remove Voter</button>
+  </div>
+
+  <div class="section">
+    <h3>Vote</h3>
+    <div class="vote-option">
+      <input type="radio" id="pti" name="party" value="PTI" checked>
+      <label for="pti">PTI</label>
+    </div>
+    <div class="vote-option">
+      <input type="radio" id="pmln" name="party" value="PMLN">
+      <label for="pmln">PMLN</label>
+    </div>
+    <button onclick="castVote()">Cast Vote</button>
+  </div>
+
+  <div class="section">
+    <button onclick="getOwner()"> Show Contract Owner</button>
+    <h3>Results</h3>
+    <div class="results">
+      <div class="party-result" id="ptiResult">
+        <h4>PTI Votes</h4>
+        <p id="ptiVotes">0</p>
+      </div>
+      <div class="party-result" id="pmlnResult">
+        <h4>PMLN Votes</h4>
+        <p id="pmlnVotes">0</p>
+      </div>
+    </div>
+    <button onclick="getResults()"> Refresh Results</button>
+  </div>
+
+  <p id="output"></p>
+
+  <script>
+    const contractABI = 
+
+  [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_party",
+				"type": "uint256"
+			}
+		],
+		"name": "castVote",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "registerVoter",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "removeVoter",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "party",
+				"type": "uint256"
+			}
+		],
+		"name": "VoteCast",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			}
+		],
+		"name": "VoterRegistered",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			}
+		],
+		"name": "VoterRemoved",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "checkIfVoted",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "checkVoterStatus",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getPMLNVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getPTIVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "hasVoted",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "isRegistered",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pmlnVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "ptiVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+
+
+
+	const contractAddress = "0x15D2f911649c8b2838d966AFA6f5FeF398035762";
+	let contract;
+	let userAccount;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+        userAccount = accounts[0];
+        document.getElementById("walletAddress").innerText = "✅ Connected: " + userAccount;
+        const web3 = new Web3(window.ethereum);
+        contract = new web3.eth.Contract(contractABI, contractAddress);
+        // Auto-fill the voter address field with connected wallet
+        document.getElementById("voterAddress").value = userAccount;
+      } else {
+        alert("⚠ Please install MetaMask!");
+      }
+    }
+
+    async function registerVoter() {
+      const address = document.getElementById("voterAddress").value;
+      try {
+        await contract.methods.registerVoter(address).send({ from: userAccount });
+        document.getElementById("output").innerText = "✅ Voter Registered";
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    async function removeVoter() {
+      const address = document.getElementById("voterAddress").value;
+      try {
+        await contract.methods.removeVoter(address).send({ from: userAccount });
+        document.getElementById("output").innerText = "❌ Voter Removed";
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    async function castVote() {
+      const address = document.getElementById("voterAddress").value;
+      const party = document.querySelector('input[name="party"]:checked').value;
+      const partyId = party === "PTI" ? 0 : 1; // 0 for PTI, 1 for PMLN
+
+      try {
+        // Check if registered
+        const isRegistered = await contract.methods.checkVoterStatus(address).call();
+        if (!isRegistered) {
+          document.getElementById("output").innerText = "❌ Voter Not Registered!";
+          return;
+        }
+
+        // Check if already voted
+        const hasVoted = await contract.methods.checkIfVoted(address).call();
+        if (hasVoted) {
+          document.getElementById("output").innerText = "🛑 Already Voted!";
+          return;
+        }
+
+        // Cast vote
+        await contract.methods.castVote(address, partyId).send({ from: userAccount });
+        document.getElementById("output").innerText = `🗳 Vote Casted for ${party}`;
+        
+        // Refresh results
+        await getResults();
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    async function checkIfVoted() {
+      const address = document.getElementById("voterAddress").value;
+      try {
+        const result = await contract.methods.checkIfVoted(address).call();
+        document.getElementById("output").innerText = `🕵‍♂ Has Voted: ${result}`;
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    async function checkVoterStatus() {
+      const address = document.getElementById("voterAddress").value;
+      try {
+        const result = await contract.methods.checkVoterStatus(address).call();
+        document.getElementById("output").innerText = `📝 Registered: ${result}`;
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    async function getOwner() {
+      try {
+        const owner = await contract.methods.owner().call();
+        document.getElementById("output").innerText = "👑 Contract Owner: " + owner;
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    async function getResults() {
+      try {
+        const ptiVotes = await contract.methods.getPTIVotes().call();
+        const pmlnVotes = await contract.methods.getPMLNVotes().call();
+        document.getElementById("ptiVotes").innerText = ptiVotes;
+        document.getElementById("pmlnVotes").innerText = pmlnVotes;
+        document.getElementById("output").innerText = "📊 Results Refreshed";
+      } catch (error) {
+        document.getElementById("output").innerText = "❌ Error: " + error.message;
+      }
+    }
+
+    // Initialize results on page load
+    window.onload = async function() {
+      if (window.ethereum) {
+        try {
+          const web3 = new Web3(window.ethereum);
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          await getResults();
+        } catch (error) {
+          console.error("Could not initialize contract:", error);
+        }
+      }
+    };
+  </script>
+
+</body>
+</html>
